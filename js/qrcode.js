@@ -40,8 +40,8 @@ async function generateQR(text, options = {}) {
   if (options.backgroundImage) {
     const bgImg = await loadImage(options.backgroundImage);
     ctx.drawImage(bgImg, 0, 0, size, size);
-    // 半透明遮罩
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    // 轻微遮罩，让背景图可见
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillRect(0, 0, size, size);
   } else {
     ctx.fillStyle = colorLight;
@@ -51,12 +51,23 @@ async function generateQR(text, options = {}) {
   // 绘制 QR 码模块
   const cornerRadius = options.cornerRadius || 0;
   const dotSize = cellSize * (1 - cornerRadius * 0.5);
+  const hasBgImage = !!options.backgroundImage;
 
   for (let row = 0; row < moduleCount; row++) {
     for (let col = 0; col < moduleCount; col++) {
       if (qr.isDark(row, col)) {
         const x = (col + margin) * cellSize;
         const y = (row + margin) * cellSize;
+
+        // 有背景图时，给每个模块加白色底衬增加对比度
+        if (hasBgImage) {
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          if (cornerRadius > 0) {
+            drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, 'rgba(255,255,255,0.6)');
+          } else {
+            ctx.fillRect(x, y, dotSize, dotSize);
+          }
+        }
 
         if (cornerRadius > 0) {
           drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, colorDark);
