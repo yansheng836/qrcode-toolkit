@@ -1,6 +1,6 @@
 # QRCode Toolkit
 
-纯前端在线二维码生成器，无服务端依赖。基于 [qrcode-generator](https://github.com/nickvdyck/qrcode-generator) 库，支持多种内容类型、丰富的样式定制和 3D 立体效果。
+纯前端在线二维码生成器，无服务端依赖。基于 [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 库，支持多种内容类型、丰富的样式定制和 3D 立体效果。
 
 ## 功能
 
@@ -23,7 +23,7 @@ npx serve .
 ## 技术栈
 
 - 原生 HTML / CSS / JavaScript，无构建工具
-- [qrcode-generator@1.4.4](https://unpkg.com/qrcode-generator@1.4.4/qrcode.js)（CDN 引入）
+- [qrcode-generator@1.4.4](https://github.com/kazuhikoarase/qrcode-generator)（CDN 引入）
 - CSS 变量实现主题切换
 
 ## 项目结构
