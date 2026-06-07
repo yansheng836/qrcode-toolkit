@@ -7,9 +7,48 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="app">
-    <!-- 后续 Task 填充 -->
-  </div>
+  <header class="header">
+    <h1 class="header-title">QRCode Toolkit</h1>
+    <div class="header-actions">
+      <button class="theme-btn" data-theme="light" title="极简白">
+        <span class="theme-icon">☀</span>
+      </button>
+      <button class="theme-btn" data-theme="dark" title="暗色主题">
+        <span class="theme-icon">🌙</span>
+      </button>
+      <button class="theme-btn" data-theme="gradient" title="渐变毛玻璃">
+        <span class="theme-icon">🎨</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="panel">
+      <section class="panel-section">
+        <h2 class="section-title">内容</h2>
+        <div id="content-area"></div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title">样式</h2>
+        <div id="style-area"></div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title">导出</h2>
+        <div id="export-area"></div>
+      </section>
+    </aside>
+
+    <div class="preview">
+      <div class="preview-card">
+        <div id="qr-preview" class="qr-container">
+          <p class="qr-placeholder">输入内容后自动生成二维码</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
   <script src="https://unpkg.com/awesome-qr@2.1.0/dist/awesome-qr.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/themes.js"></script>
