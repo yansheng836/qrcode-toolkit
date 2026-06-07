@@ -17,70 +17,126 @@
  * @returns {Promise<string>} 二维码图片 Data URL
  */
 async function generateQR(text, options = {}) {
-  const config = {
-    text: text,
-    size: options.size || 300,
-    colorDark: options.colorDark || '#000000',
-    colorLight: options.colorLight || '#ffffff',
-  };
+  const size = options.size || 300;
+  const colorDark = options.colorDark || '#000000';
+  const colorLight = options.colorLight || '#ffffff';
+  const margin = 2;
 
-  // 背景图片
+  // 创建 QR 码数据
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+
+  const moduleCount = qr.getModuleCount();
+  const cellSize = size / (moduleCount + margin * 2);
+
+  // 创建 canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // 绘制背景
   if (options.backgroundImage) {
-    config.backgroundImage = options.backgroundImage;
+    const bgImg = await loadImage(options.backgroundImage);
+    ctx.drawImage(bgImg, 0, 0, size, size);
+    // 半透明遮罩
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(0, 0, size, size);
+  } else {
+    ctx.fillStyle = colorLight;
+    ctx.fillRect(0, 0, size, size);
   }
 
-  // 圆角
-  if (options.cornerRadius !== undefined) {
-    config.cornerRadius = options.cornerRadius;
+  // 绘制 QR 码模块
+  const cornerRadius = options.cornerRadius || 0;
+  const dotSize = cellSize * (1 - cornerRadius * 0.5);
+
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      if (qr.isDark(row, col)) {
+        const x = (col + margin) * cellSize;
+        const y = (row + margin) * cellSize;
+
+        if (cornerRadius > 0) {
+          drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, colorDark);
+        } else {
+          ctx.fillStyle = colorDark;
+          ctx.fillRect(x, y, dotSize, dotSize);
+        }
+      }
+    }
+  }
+
+  // 渐变叠加
+  if (options.gradient && options.gradient.colorStops) {
+    const gradientConfig = options.gradient;
+    let gradient;
+    if (gradientConfig.type === 'radial') {
+      gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    } else {
+      const dir = (gradientConfig.direction || 135) * Math.PI / 180;
+      gradient = ctx.createLinearGradient(
+        size/2 - Math.cos(dir) * size/2, size/2 - Math.sin(dir) * size/2,
+        size/2 + Math.cos(dir) * size/2, size/2 + Math.sin(dir) * size/2
+      );
+    }
+    gradientConfig.colorStops.forEach(stop => {
+      gradient.addColorStop(stop.offset, stop.color);
+    });
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // Logo
   if (options.logoImage) {
-    config.logoImage = options.logoImage;
-    config.logoScale = 0.2;
-    config.logoMargin = 4;
-    config.logoCornerRadius = 4;
+    const logoImg = await loadImage(options.logoImage);
+    const logoSize = size * 0.2;
+    const logoX = (size - logoSize) / 2;
+    const logoY = (size - logoSize) / 2;
+    const logoPadding = 4;
+
+    // Logo 背景
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    drawRoundedRectPath(ctx, logoX - logoPadding, logoY - logoPadding, logoSize + logoPadding * 2, logoSize + logoPadding * 2, 4);
+    ctx.fill();
+
+    // Logo 图片
+    ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
   }
 
-  // 渐变背景：通过 canvas 后处理实现
-  const gradientConfig = options.gradient && options.gradient.colorStops ? options.gradient : null;
-  if (gradientConfig) {
-    config.autoColor = false;
-  }
+  return canvas.toDataURL('image/png');
+}
 
+function loadImage(src) {
   return new Promise((resolve, reject) => {
-    try {
-      const qr = new AwesomeQR(config);
-      qr.draw().then(canvas => {
-        if (gradientConfig) {
-          // 在 canvas 上叠加渐变背景
-          const ctx = canvas.getContext('2d');
-          const w = canvas.width;
-          const h = canvas.height;
-          let gradient;
-          if (gradientConfig.type === 'radial') {
-            gradient = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
-          } else {
-            const dir = (gradientConfig.direction || 135) * Math.PI / 180;
-            gradient = ctx.createLinearGradient(
-              w/2 - Math.cos(dir) * w/2, h/2 - Math.sin(dir) * h/2,
-              w/2 + Math.cos(dir) * w/2, h/2 + Math.sin(dir) * h/2
-            );
-          }
-          gradientConfig.colorStops.forEach(stop => {
-            gradient.addColorStop(stop.offset, stop.color);
-          });
-          // 仅在二维码模块区域应用渐变（保留透明区域）
-          ctx.globalCompositeOperation = 'source-atop';
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, w, h);
-          ctx.globalCompositeOperation = 'source-over';
-        }
-        const dataURL = canvas.toDataURL('image/png');
-        resolve(dataURL);
-      }).catch(reject);
-    } catch (err) {
-      reject(err);
-    }
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
   });
+}
+
+function drawRoundedRect(ctx, x, y, w, h, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  drawRoundedRectPath(ctx, x, y, w, h, r);
+  ctx.fill();
+}
+
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }

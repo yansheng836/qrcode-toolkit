@@ -1,6 +1,6 @@
 # QRCode Toolkit
 
-纯前端在线二维码生成器，无服务端依赖。基于 [awesome-qr](https://github.com/SumiMakito/Awesome-qr.js) 库，支持多种内容类型和丰富的样式定制。
+纯前端在线二维码生成器，无服务端依赖。基于 [qrcode-generator](https://github.com/nickvdyck/qrcode-generator) 库，支持多种内容类型和丰富的样式定制。
 
 ## 功能
 
@@ -22,7 +22,7 @@ npx serve .
 ## 技术栈
 
 - 原生 HTML / CSS / JavaScript，无构建工具
-- [awesome-qr@2.0.0-rc.1](https://unpkg.com/awesome-qr@2.0.0-rc.1/dist/awesome-qr.js)（CDN 引入）
+- [qrcode-generator@1.4.4](https://unpkg.com/qrcode-generator@1.4.4/qrcode.js)（CDN 引入）
 - CSS 变量实现主题切换
 
 ## 项目结构
