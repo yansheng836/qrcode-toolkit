@@ -22,7 +22,7 @@ npx serve .
 ## 技术栈
 
 - 原生 HTML / CSS / JavaScript，无构建工具
-- [awesome-qr@2.1.0](https://unpkg.com/awesome-qr@2.1.0/dist/awesome-qr.js)（CDN 引入）
+- [awesome-qr@2.0.0-rc.1](https://unpkg.com/awesome-qr@2.0.0-rc.1/dist/awesome-qr.js)（CDN 引入）
 - CSS 变量实现主题切换
 
 ## 项目结构

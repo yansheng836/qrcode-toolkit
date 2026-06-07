@@ -13,7 +13,7 @@ Open `index.html` directly in a browser, or use a local server (e.g., VS Code Li
 ## Tech Stack
 
 - Pure HTML/CSS/JS, no build tools
-- awesome-qr@2.1.0 via CDN (`https://unpkg.com/awesome-qr@2.1.0/dist/awesome-qr.js`)
+- awesome-qr@2.0.0-rc.1 via CDN (`https://unpkg.com/awesome-qr@2.0.0-rc.1/dist/awesome-qr.js`)
 - Global variable: `AwesomeQR`
 
 ## Architecture
