@@ -108,6 +108,7 @@ let currentOptions = {
   colorDark: '#000000',
   colorLight: '#ffffff',
   style3d: false,
+  size: 400,
 };
 
 function initStyleArea() {
@@ -346,13 +347,14 @@ function initExportArea() {
     if (!text) return;
 
     try {
-      const dataURL = await generateQR(text, currentOptions);
+      const size = currentOptions.size || 400;
+      const dataURL = await generateQR(text, { ...currentOptions, size });
 
       if (format === 'svg') {
-        const svgDataURL = canvasToSVG(dataURL, 300, 300);
+        const svgDataURL = canvasToSVG(dataURL, size, size);
         downloadFile(svgDataURL, 'qrcode.svg');
       } else if (format === 'jpg') {
-        const jpgDataURL = await convertToJPG(dataURL);
+        const jpgDataURL = await convertToJPG(dataURL, size);
         downloadFile(jpgDataURL, 'qrcode.jpg');
       } else {
         downloadFile(dataURL, 'qrcode.png');
@@ -370,14 +372,14 @@ function canvasToSVG(pngDataURL, width, height) {
   return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
-function convertToJPG(pngDataURL) {
+function convertToJPG(pngDataURL, size) {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 300, 300);
+    ctx.fillRect(0, 0, size, size);
     const img = new Image();
     img.onload = () => {
       ctx.drawImage(img, 0, 0);

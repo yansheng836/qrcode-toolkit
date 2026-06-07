@@ -96,12 +96,13 @@ body {
 /* Main layout */
 .main {
   display: flex;
-  min-height: calc(100vh - 57px);
+  height: calc(100vh - 57px);
 }
 
 .panel {
   width: 360px;
   min-width: 360px;
+  height: 100%;
   padding: 20px;
   background: var(--card-bg);
   border-right: 1px solid var(--border-color);
@@ -131,18 +132,22 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px;
+  position: sticky;
+  top: 0;
+  height: calc(100vh - 57px);
+  overflow: hidden;
 }
 
 .preview-card {
   background: var(--card-bg);
   border-radius: 12px;
-  padding: 32px;
+  padding: 40px;
   box-shadow: var(--card-shadow);
 }
 
 .qr-container {
-  width: 300px;
-  height: 300px;
+  width: 400px;
+  height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,17 +341,27 @@ body {
 @media (max-width: 768px) {
   .main {
     flex-direction: column;
+    height: auto;
   }
 
   .panel {
     width: 100%;
     min-width: unset;
+    height: auto;
+    max-height: 50vh;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
   }
 
   .preview {
     padding: 20px;
+    position: static;
+    height: auto;
+  }
+
+  .qr-container {
+    width: 300px;
+    height: 300px;
   }
 }
 
