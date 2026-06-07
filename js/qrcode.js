@@ -22,7 +22,6 @@ async function generateQR(text, options = {}) {
     size: options.size || 300,
     colorDark: options.colorDark || '#000000',
     colorLight: options.colorLight || '#ffffff',
-    correctLevel: AwesomeQR.CorrectLevel.M,
   };
 
   // 背景图片
