@@ -168,25 +168,26 @@ function draw3dQR(ctx, qr, moduleCount, margin, cellSize, dotSize, baseColor, gr
   const sx = depth * 1.0;
   const sy = depth * 1.0;
 
-  // 第一步：用 ctx.shadowBlur 绘制整体统一阴影
-  ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = depth * 1.5;
-  ctx.shadowOffsetX = sx;
-  ctx.shadowOffsetY = sy;
-  ctx.fillStyle = topColor;
-  ctx.beginPath();
+  // 第一步：用临时 canvas + shadowBlur 绘制整体统一阴影
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = ctx.canvas.width;
+  tmpCanvas.height = ctx.canvas.height;
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  tmpCtx.shadowBlur = depth * 1.5;
+  tmpCtx.shadowOffsetX = sx;
+  tmpCtx.shadowOffsetY = sy;
+  tmpCtx.fillStyle = 'rgba(0,0,0,0.5)';
+  tmpCtx.beginPath();
   for (let row = 0; row < moduleCount; row++) {
     for (let col = 0; col < moduleCount; col++) {
       if (qr.isDark(row, col)) {
-        const x = (col + margin) * cellSize;
-        const y = (row + margin) * cellSize;
-        ctx.rect(x, y, dotSize, dotSize);
+        tmpCtx.rect((col + margin) * cellSize, (row + margin) * cellSize, dotSize, dotSize);
       }
     }
   }
-  ctx.fill();
-  ctx.restore();
+  tmpCtx.fill();
+  ctx.drawImage(tmpCanvas, 0, 0);
 
   // 第二步：绘制所有侧面（先侧面后顶面，画家算法）
   for (let row = 0; row < moduleCount; row++) {
