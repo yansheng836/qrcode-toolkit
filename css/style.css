@@ -306,3 +306,32 @@ body {
   background: var(--accent-color);
   color: white;
 }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main {
+    flex-direction: column;
+  }
+
+  .panel {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .preview {
+    padding: 20px;
+  }
+}
+
+/* Gradient theme special styles */
+[data-theme="gradient"] .panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="gradient"] .preview-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
