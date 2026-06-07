@@ -75,52 +75,44 @@ async function generateQR(text, options = {}) {
 
   // 绘制 QR 码模块
   const style3d = options.style3d || false;
-  const depth3d = cellSize * 0.35;
-  const shadowDir = { x: 1.2, y: 1.2 };
+  const depth3d = cellSize * 0.4;
 
-  // 3D 模式：先绘制整体阴影，再绘制方块和侧面
   if (style3d) {
-    drawUnifiedShadow(ctx, qr, moduleCount, margin, cellSize, dotSize, colorDark, shadowDir, depth3d);
-  }
+    draw3dQR(ctx, qr, moduleCount, margin, cellSize, dotSize, colorDark, options.gradient, depth3d, hasBgImage);
+  } else {
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (qr.isDark(row, col)) {
+          const x = (col + margin) * cellSize;
+          const y = (row + margin) * cellSize;
+          const centerX = x + dotSize / 2;
+          const centerY = y + dotSize / 2;
+          const radius = dotSize / 2;
 
-  for (let row = 0; row < moduleCount; row++) {
-    for (let col = 0; col < moduleCount; col++) {
-      if (qr.isDark(row, col)) {
-        const x = (col + margin) * cellSize;
-        const y = (row + margin) * cellSize;
-        const centerX = x + dotSize / 2;
-        const centerY = y + dotSize / 2;
-        const radius = dotSize / 2;
+          if (hasBgImage) {
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            if (cornerRadius >= 0.8) {
+              ctx.beginPath();
+              ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (cornerRadius > 0) {
+              drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, 'rgba(255,255,255,0.6)');
+            } else {
+              ctx.fillRect(x, y, dotSize, dotSize);
+            }
+          }
 
-        // 有背景图时，给每个模块加白色底衬增加对比度
-        if (hasBgImage) {
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          if (style3d) {
-            ctx.fillRect(x, y, dotSize, dotSize);
-          } else if (cornerRadius >= 0.8) {
+          if (cornerRadius >= 0.8) {
+            ctx.fillStyle = foregroundFill;
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fill();
           } else if (cornerRadius > 0) {
-            drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, 'rgba(255,255,255,0.6)');
+            drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, foregroundFill);
           } else {
+            ctx.fillStyle = foregroundFill;
             ctx.fillRect(x, y, dotSize, dotSize);
           }
-        }
-
-        if (style3d) {
-          draw3dBlock(ctx, x, y, dotSize, colorDark, options.gradient, qr, moduleCount, row, col, shadowDir, depth3d);
-        } else if (cornerRadius >= 0.8) {
-          // 圆点模式
-          ctx.fillStyle = foregroundFill;
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (cornerRadius > 0) {
-          drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, foregroundFill);
-        } else {
-          ctx.fillStyle = foregroundFill;
-          ctx.fillRect(x, y, dotSize, dotSize);
         }
       }
     }
@@ -156,118 +148,147 @@ function loadImage(src) {
   });
 }
 
-function drawUnifiedShadow(ctx, qr, moduleCount, margin, cellSize, dotSize, baseColor, shadowDir, depth) {
-  // 用临时 canvas 绘制整体阴影形状
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const tmpCanvas = document.createElement('canvas');
-  tmpCanvas.width = w;
-  tmpCanvas.height = h;
-  const tmpCtx = tmpCanvas.getContext('2d');
-
-  // 绘制所有暗色模块的并集（偏移到阴影方向）
-  const sx = shadowDir.x * depth;
-  const sy = shadowDir.y * depth;
-  for (let row = 0; row < moduleCount; row++) {
-    for (let col = 0; col < moduleCount; col++) {
-      if (qr.isDark(row, col)) {
-        const x = (col + margin) * cellSize + sx;
-        const y = (row + margin) * cellSize + sy;
-        tmpCtx.fillRect(x, y, dotSize, dotSize);
-      }
-    }
-  }
-
-  // 模糊后以半透明黑色绘制
-  tmpCtx.filter = 'blur(2px)';
-  tmpCtx.drawImage(tmpCanvas, 0, 0);
-  tmpCtx.filter = 'none';
-
-  ctx.globalAlpha = 0.3;
-  ctx.drawImage(tmpCanvas, 0, 0);
-  ctx.globalAlpha = 1;
-}
-
-function draw3dBlock(ctx, x, y, size, baseColor, gradientConfig, qr, moduleCount, row, col, shadowDir, depth) {
-  // 获取颜色
+function draw3dQR(ctx, qr, moduleCount, margin, cellSize, dotSize, baseColor, gradientConfig, depth, hasBgImage) {
+  // 获取主色
   let topColor = baseColor;
   if (gradientConfig && gradientConfig.colorStops && gradientConfig.colorStops.length >= 2) {
     topColor = gradientConfig.colorStops[0].color;
   }
-
   const rgb = hexToRgb(topColor);
-  const sideColor = adjustBrightness(rgb, -40);
-  const sideDarkColor = adjustBrightness(rgb, -70);
+
+  // 侧面颜色（4个方向不同亮度模拟光照）
+  const sideBottom = adjustBrightness(rgb, -60);
+  const sideRight = adjustBrightness(rgb, -40);
+  const sideTop = adjustBrightness(rgb, -15);
+  const sideLeft = adjustBrightness(rgb, -50);
   const topLight = adjustBrightness(rgb, 20);
   const topMid = adjustBrightness(rgb, -10);
 
-  const sx = shadowDir.x * depth;
-  const sy = shadowDir.y * depth;
+  // 阴影偏移
+  const sx = depth * 1.0;
+  const sy = depth * 1.0;
 
-  // 绘制暴露边缘的侧面（整个图形的轮廓边缘）
-  const hasLeft = col > 0 && qr.isDark(row, col - 1);
-  const hasRight = col < moduleCount - 1 && qr.isDark(row, col + 1);
-  const hasTop = row > 0 && qr.isDark(row - 1, col);
-  const hasBottom = row < moduleCount - 1 && qr.isDark(row + 1, col);
+  // 第一步：用 ctx.shadowBlur 绘制整体统一阴影
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  ctx.shadowBlur = depth * 1.5;
+  ctx.shadowOffsetX = sx;
+  ctx.shadowOffsetY = sy;
+  ctx.fillStyle = topColor;
+  ctx.beginPath();
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      if (qr.isDark(row, col)) {
+        const x = (col + margin) * cellSize;
+        const y = (row + margin) * cellSize;
+        ctx.rect(x, y, dotSize, dotSize);
+      }
+    }
+  }
+  ctx.fill();
+  ctx.restore();
 
-  if (!hasBottom) {
-    ctx.fillStyle = sideDarkColor;
-    ctx.beginPath();
-    ctx.moveTo(x, y + size);
-    ctx.lineTo(x + size, y + size);
-    ctx.lineTo(x + size + sx, y + size + sy);
-    ctx.lineTo(x + sx, y + size + sy);
-    ctx.closePath();
-    ctx.fill();
+  // 第二步：绘制所有侧面（先侧面后顶面，画家算法）
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      if (!qr.isDark(row, col)) continue;
+      const x = (col + margin) * cellSize;
+      const y = (row + margin) * cellSize;
+      const hasLeft = col > 0 && qr.isDark(row, col - 1);
+      const hasRight = col < moduleCount - 1 && qr.isDark(row, col + 1);
+      const hasTop = row > 0 && qr.isDark(row - 1, col);
+      const hasBottom = row < moduleCount - 1 && qr.isDark(row + 1, col);
+
+      // 底面（最暗）
+      if (!hasBottom) {
+        const grad = ctx.createLinearGradient(x, y + dotSize, x, y + dotSize + sy);
+        grad.addColorStop(0, `rgb(${sideBottom[0]},${sideBottom[1]},${sideBottom[2]})`);
+        grad.addColorStop(1, `rgb(${adjustBrightness(rgb, -80).join(',')})`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(x, y + dotSize);
+        ctx.lineTo(x + dotSize, y + dotSize);
+        ctx.lineTo(x + dotSize + sx, y + dotSize + sy);
+        ctx.lineTo(x + sx, y + dotSize + sy);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 右面（中等暗）
+      if (!hasRight) {
+        const grad = ctx.createLinearGradient(x + dotSize, y, x + dotSize + sx, y);
+        grad.addColorStop(0, `rgb(${sideRight[0]},${sideRight[1]},${sideRight[2]})`);
+        grad.addColorStop(1, `rgb(${adjustBrightness(rgb, -65).join(',')})`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(x + dotSize, y);
+        ctx.lineTo(x + dotSize + sx, y + sy);
+        ctx.lineTo(x + dotSize + sx, y + dotSize + sy);
+        ctx.lineTo(x + dotSize, y + dotSize);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 顶面（较亮，光照面）
+      if (!hasTop) {
+        ctx.fillStyle = `rgb(${sideTop[0]},${sideTop[1]},${sideTop[2]})`;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + dotSize, y);
+        ctx.lineTo(x + dotSize + sx, y + sy);
+        ctx.lineTo(x + sx, y + sy);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 左面（较暗）
+      if (!hasLeft) {
+        ctx.fillStyle = `rgb(${sideLeft[0]},${sideLeft[1]},${sideLeft[2]})`;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + sx, y + sy);
+        ctx.lineTo(x + sx, y + dotSize + sy);
+        ctx.lineTo(x, y + dotSize);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
   }
 
-  if (!hasRight) {
-    ctx.fillStyle = sideColor;
-    ctx.beginPath();
-    ctx.moveTo(x + size, y);
-    ctx.lineTo(x + size + sx, y + sy);
-    ctx.lineTo(x + size + sx, y + size + sy);
-    ctx.lineTo(x + size, y + size);
-    ctx.closePath();
-    ctx.fill();
+  // 第三步：绘制所有顶面（覆盖在侧面之上）
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      if (!qr.isDark(row, col)) continue;
+      const x = (col + margin) * cellSize;
+      const y = (row + margin) * cellSize;
+
+      // 背景图白色底衬
+      if (hasBgImage) {
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillRect(x, y, dotSize, dotSize);
+      }
+
+      // 顶面渐变（左上亮，右下暗）
+      const topGrad = ctx.createLinearGradient(x, y, x + dotSize, y + dotSize);
+      topGrad.addColorStop(0, `rgb(${topLight[0]},${topLight[1]},${topLight[2]})`);
+      topGrad.addColorStop(0.5, topColor);
+      topGrad.addColorStop(1, `rgb(${topMid[0]},${topMid[1]},${topMid[2]})`);
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(x, y, dotSize, dotSize);
+
+      // 高光（左上角）
+      const hl = ctx.createLinearGradient(x, y, x + dotSize * 0.6, y + dotSize * 0.6);
+      hl.addColorStop(0, 'rgba(255,255,255,0.18)');
+      hl.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = hl;
+      ctx.fillRect(x, y, dotSize, dotSize);
+
+      // 顶面边缘描边（增强立体感）
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x + 0.25, y + 0.25, dotSize - 0.5, dotSize - 0.5);
+    }
   }
-
-  if (!hasTop) {
-    ctx.fillStyle = adjustBrightness(rgb, -20);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + size, y);
-    ctx.lineTo(x + size + sx, y + sy);
-    ctx.lineTo(x + sx, y + sy);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  if (!hasLeft) {
-    ctx.fillStyle = adjustBrightness(rgb, -50);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + sx, y + sy);
-    ctx.lineTo(x + sx, y + size + sy);
-    ctx.lineTo(x, y + size);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // 绘制顶面
-  const topGrad = ctx.createLinearGradient(x, y, x + size, y + size);
-  topGrad.addColorStop(0, `rgb(${topLight[0]},${topLight[1]},${topLight[2]})`);
-  topGrad.addColorStop(0.5, topColor);
-  topGrad.addColorStop(1, `rgb(${topMid[0]},${topMid[1]},${topMid[2]})`);
-  ctx.fillStyle = topGrad;
-  ctx.fillRect(x, y, size, size);
-
-  // 顶面高光
-  const highlightGrad = ctx.createLinearGradient(x, y, x + size * 0.5, y + size * 0.5);
-  highlightGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
-  highlightGrad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = highlightGrad;
-  ctx.fillRect(x, y, size, size);
 }
 
 function hexToRgb(hex) {
