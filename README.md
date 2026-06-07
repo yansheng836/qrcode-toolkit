@@ -23,7 +23,7 @@ npx serve .
 ## 技术栈
 
 - 原生 HTML / CSS / JavaScript，无构建工具
-- [qrcode-generator@1.4.4](https://github.com/kazuhikoarase/qrcode-generator)（CDN 引入）
+- [qrcode-generator@1.4.4](https://unpkg.com/qrcode-generator@1.4.4/qrcode.js)（CDN 引入）
 - CSS 变量实现主题切换
 
 ## 项目结构

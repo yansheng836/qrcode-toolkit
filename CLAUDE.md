@@ -13,7 +13,7 @@ Open `index.html` directly in a browser, or use a local server (e.g., VS Code Li
 ## Tech Stack
 
 - Pure HTML/CSS/JS, no build tools
-- [qrcode-generator@1.4.4](https://github.com/kazuhikoarase/qrcode-generator) via CDN (`https://unpkg.com/qrcode-generator@1.4.4/qrcode.js`)
+- qrcode-generator@1.4.4 via CDN (`https://unpkg.com/qrcode-generator@1.4.4/qrcode.js`)
 - Global function: `qrcode(0, 'M')` — returns QR code instance with `.addData()`, `.make()`, `.getModuleCount()`, `.isDark(row, col)`
 
 ## Architecture
