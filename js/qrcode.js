@@ -88,11 +88,11 @@ async function generateQR(text, options = {}) {
         // 有背景图时，给每个模块加白色底衬增加对比度
         if (hasBgImage) {
           ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          if (style3d || cornerRadius >= 0.8) {
+          if (cornerRadius >= 0.8) {
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fill();
-          } else if (cornerRadius > 0) {
+          } else if (cornerRadius > 0 && !style3d) {
             drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, 'rgba(255,255,255,0.6)');
           } else {
             ctx.fillRect(x, y, dotSize, dotSize);
@@ -100,8 +100,8 @@ async function generateQR(text, options = {}) {
         }
 
         if (style3d) {
-          // 3D 立体效果：球体 + 高光
-          draw3dDot(ctx, centerX, centerY, radius, colorDark, options.gradient);
+          // 3D 立体方块效果
+          draw3dBlock(ctx, x, y, dotSize, colorDark, options.gradient);
         } else if (cornerRadius >= 0.8) {
           // 圆点模式
           ctx.fillStyle = foregroundFill;
@@ -148,53 +148,92 @@ function loadImage(src) {
   });
 }
 
-function draw3dDot(ctx, cx, cy, radius, baseColor, gradientConfig) {
-  const r = radius * 0.9;
+function draw3dBlock(ctx, x, y, size, baseColor, gradientConfig) {
+  // 3D 方块参数
+  const depth = size * 0.25; // 侧面深度
+  const gap = size * 0.05;   // 方块间距
 
-  // 底部阴影
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = r * 0.4;
-  ctx.shadowOffsetX = r * 0.15;
-  ctx.shadowOffsetY = r * 0.15;
+  // 实际绘制尺寸（留出间距）
+  const w = size - gap;
+  const h = size - gap;
 
-  // 球体渐变（从左上高光到右下暗部）
-  const sphereGrad = ctx.createRadialGradient(
-    cx - r * 0.3, cy - r * 0.3, r * 0.1,
-    cx, cy, r
-  );
+  // 获取颜色
+  let topColor = baseColor;
+  let sideColor, sideDarkColor;
 
   if (gradientConfig && gradientConfig.colorStops && gradientConfig.colorStops.length >= 2) {
-    // 使用用户选择的渐变色作为基础
-    const c1 = gradientConfig.colorStops[0].color;
-    const c2 = gradientConfig.colorStops[1].color;
-    sphereGrad.addColorStop(0, lightenColor(c1, 60));
-    sphereGrad.addColorStop(0.5, c1);
-    sphereGrad.addColorStop(1, c2);
+    topColor = gradientConfig.colorStops[0].color;
+    sideColor = darkenColor(topColor, 25);
+    sideDarkColor = darkenColor(topColor, 45);
   } else {
-    // 默认：基于 baseColor 生成立体渐变
-    sphereGrad.addColorStop(0, lightenColor(baseColor, 80));
-    sphereGrad.addColorStop(0.4, baseColor);
-    sphereGrad.addColorStop(1, darkenColor(baseColor, 40));
+    sideColor = darkenColor(baseColor, 25);
+    sideDarkColor = darkenColor(baseColor, 45);
   }
 
-  ctx.fillStyle = sphereGrad;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  const bx = x + gap / 2;
+  const by = y + gap / 2;
 
-  // 高光点
-  const highlightGrad = ctx.createRadialGradient(
-    cx - r * 0.25, cy - r * 0.25, 0,
-    cx - r * 0.25, cy - r * 0.25, r * 0.5
-  );
-  highlightGrad.addColorStop(0, 'rgba(255,255,255,0.7)');
+  // 1. 绘制底部阴影（投影）
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.moveTo(bx + depth + 2, by + h + 2);
+  ctx.lineTo(bx + w + 2, by + h + 2);
+  ctx.lineTo(bx + w + 2, by + h - depth + 2);
+  ctx.lineTo(bx + w - depth + 2, by + h + 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. 绘制右侧面（中等深度）
+  ctx.fillStyle = sideColor;
+  ctx.beginPath();
+  ctx.moveTo(bx + w, by + depth);
+  ctx.lineTo(bx + w, by + h);
+  ctx.lineTo(bx + w - depth, by + h);
+  ctx.lineTo(bx + w - depth, by + depth + depth);
+  ctx.closePath();
+  ctx.fill();
+
+  // 3. 绘制底侧面（最深）
+  ctx.fillStyle = sideDarkColor;
+  ctx.beginPath();
+  ctx.moveTo(bx + depth, by + h);
+  ctx.lineTo(bx + w - depth, by + h);
+  ctx.lineTo(bx + w, by + h - depth);
+  ctx.lineTo(bx + depth + depth, by + h - depth);
+  ctx.closePath();
+  ctx.fill();
+
+  // 4. 绘制顶面（主色 + 高光渐变）
+  const topGrad = ctx.createLinearGradient(bx, by, bx + w, by + h);
+  topGrad.addColorStop(0, lightenColor(topColor, 20));
+  topGrad.addColorStop(0.5, topColor);
+  topGrad.addColorStop(1, darkenColor(topColor, 10));
+
+  ctx.fillStyle = topGrad;
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx + w, by);
+  ctx.lineTo(bx + w, by + h - depth);
+  ctx.lineTo(bx + w - depth, by + h);
+  ctx.lineTo(bx + depth, by + h);
+  ctx.lineTo(bx, by + h - depth);
+  ctx.closePath();
+  ctx.fill();
+
+  // 5. 顶面高光（左上角亮光）
+  const highlightGrad = ctx.createLinearGradient(bx, by, bx + w * 0.5, by + h * 0.5);
+  highlightGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
   highlightGrad.addColorStop(1, 'rgba(255,255,255,0)');
 
   ctx.fillStyle = highlightGrad;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx + w, by);
+  ctx.lineTo(bx + w, by + h - depth);
+  ctx.lineTo(bx + w - depth, by + h);
+  ctx.lineTo(bx + depth, by + h);
+  ctx.lineTo(bx, by + h - depth);
+  ctx.closePath();
   ctx.fill();
 }
 

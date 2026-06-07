@@ -206,12 +206,6 @@ function bindStyleEvents() {
   // 3D 立体效果
   document.getElementById('style-3d').addEventListener('change', (e) => {
     currentOptions.style3d = e.target.checked;
-    if (e.target.checked) {
-      // 3D 模式下自动设为圆点
-      currentOptions.cornerRadius = 1;
-      document.getElementById('corner-radius').value = 100;
-      document.getElementById('radius-value').textContent = '100';
-    }
     updatePreview();
   });
 
