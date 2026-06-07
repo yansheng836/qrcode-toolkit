@@ -76,6 +76,8 @@ async function generateQR(text, options = {}) {
   // 绘制 QR 码模块
   const style3d = options.style3d || false;
 
+  const maxDepth = cellSize * 0.25;
+
   for (let row = 0; row < moduleCount; row++) {
     for (let col = 0; col < moduleCount; col++) {
       if (qr.isDark(row, col)) {
@@ -88,11 +90,13 @@ async function generateQR(text, options = {}) {
         // 有背景图时，给每个模块加白色底衬增加对比度
         if (hasBgImage) {
           ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          if (cornerRadius >= 0.8) {
+          if (style3d) {
+            ctx.fillRect(x - maxDepth, y - maxDepth, dotSize + maxDepth * 2, dotSize + maxDepth * 2);
+          } else if (cornerRadius >= 0.8) {
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fill();
-          } else if (cornerRadius > 0 && !style3d) {
+          } else if (cornerRadius > 0) {
             drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, 'rgba(255,255,255,0.6)');
           } else {
             ctx.fillRect(x, y, dotSize, dotSize);
@@ -100,8 +104,7 @@ async function generateQR(text, options = {}) {
         }
 
         if (style3d) {
-          // 3D 立体方块效果
-          draw3dBlock(ctx, x, y, dotSize, colorDark, options.gradient);
+          draw3dBlock(ctx, x, y, dotSize, colorDark, options.gradient, qr, moduleCount, row, col);
         } else if (cornerRadius >= 0.8) {
           // 圆点模式
           ctx.fillStyle = foregroundFill;
@@ -148,109 +151,92 @@ function loadImage(src) {
   });
 }
 
-function draw3dBlock(ctx, x, y, size, baseColor, gradientConfig) {
-  // 3D 方块参数
-  const depth = size * 0.25; // 侧面深度
-  const gap = size * 0.05;   // 方块间距
+function calcVortexDepth(size, moduleCount, row, col) {
+  const minDepth = size * 0.05;
+  const maxDepth = size * 0.25;
+  const cx = moduleCount / 2;
+  const cy = moduleCount / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  const dist = Math.sqrt((col - cx) * (col - cx) + (row - cy) * (row - cy)) / maxDist;
+  const angle = Math.atan2(row - cy, col - cx);
+  const spiralFactor = (angle + Math.PI) / (2 * Math.PI);
+  return { depth: minDepth + (maxDepth - minDepth) * (0.6 * dist + 0.4 * spiralFactor), dist };
+}
 
-  // 实际绘制尺寸（留出间距）
-  const w = size - gap;
-  const h = size - gap;
+function draw3dBlock(ctx, x, y, size, baseColor, gradientConfig, qr, moduleCount, row, col) {
+  // 邻居检测（用于合并相邻方块）
+  const hasRight = col < moduleCount - 1 && qr.isDark(row, col + 1);
+  const hasBottom = row < moduleCount - 1 && qr.isDark(row + 1, col);
+
+  // 旋涡阴影：由外向内、从左上到右下的深度变化
+  const { depth, dist } = calcVortexDepth(size, moduleCount, row, col);
 
   // 获取颜色
   let topColor = baseColor;
-  let sideColor, sideDarkColor;
-
   if (gradientConfig && gradientConfig.colorStops && gradientConfig.colorStops.length >= 2) {
     topColor = gradientConfig.colorStops[0].color;
-    sideColor = darkenColor(topColor, 25);
-    sideDarkColor = darkenColor(topColor, 45);
-  } else {
-    sideColor = darkenColor(baseColor, 25);
-    sideDarkColor = darkenColor(baseColor, 45);
   }
 
-  const bx = x + gap / 2;
-  const by = y + gap / 2;
+  const rgb = hexToRgb(topColor);
+  const brightnessFactor = 0.5 + 0.5 * dist;
+  const sideColor = adjustBrightness(rgb, -30 * brightnessFactor);
+  const sideDarkColor = adjustBrightness(rgb, -60 * brightnessFactor);
+  const topLight = adjustBrightness(rgb, 25 * brightnessFactor);
+  const topMid = adjustBrightness(rgb, -12 * brightnessFactor);
 
-  // 1. 绘制底部阴影（投影）
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.beginPath();
-  ctx.moveTo(bx + depth + 2, by + h + 2);
-  ctx.lineTo(bx + w + 2, by + h + 2);
-  ctx.lineTo(bx + w + 2, by + h - depth + 2);
-  ctx.lineTo(bx + w - depth + 2, by + h + 2);
-  ctx.closePath();
-  ctx.fill();
+  // 绘制右侧面（仅无右邻居时）
+  if (!hasRight) {
+    const neighborDepth = hasBottom ? calcVortexDepth(size, moduleCount, row + 1, col).depth : depth;
+    ctx.fillStyle = sideColor;
+    ctx.beginPath();
+    ctx.moveTo(x + size, y);
+    ctx.lineTo(x + size + depth, y + depth);
+    ctx.lineTo(x + size + depth, y + size + Math.max(depth, neighborDepth) - depth);
+    ctx.lineTo(x + size, y + size);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  // 2. 绘制右侧面（中等深度）
-  ctx.fillStyle = sideColor;
-  ctx.beginPath();
-  ctx.moveTo(bx + w, by + depth);
-  ctx.lineTo(bx + w, by + h);
-  ctx.lineTo(bx + w - depth, by + h);
-  ctx.lineTo(bx + w - depth, by + depth + depth);
-  ctx.closePath();
-  ctx.fill();
+  // 绘制底侧面（仅无下邻居时）
+  if (!hasBottom) {
+    const neighborDepth = hasRight ? calcVortexDepth(size, moduleCount, row, col + 1).depth : depth;
+    ctx.fillStyle = sideDarkColor;
+    ctx.beginPath();
+    ctx.moveTo(x, y + size);
+    ctx.lineTo(x + size, y + size);
+    ctx.lineTo(x + size + Math.max(depth, neighborDepth) - depth, y + size + depth);
+    ctx.lineTo(x + depth, y + size + depth);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  // 3. 绘制底侧面（最深）
-  ctx.fillStyle = sideDarkColor;
-  ctx.beginPath();
-  ctx.moveTo(bx + depth, by + h);
-  ctx.lineTo(bx + w - depth, by + h);
-  ctx.lineTo(bx + w, by + h - depth);
-  ctx.lineTo(bx + depth + depth, by + h - depth);
-  ctx.closePath();
-  ctx.fill();
-
-  // 4. 绘制顶面（主色 + 高光渐变）
-  const topGrad = ctx.createLinearGradient(bx, by, bx + w, by + h);
-  topGrad.addColorStop(0, lightenColor(topColor, 20));
+  // 绘制顶面（主色 + 旋涡渐变）
+  const topGrad = ctx.createLinearGradient(x, y, x + size, y + size);
+  topGrad.addColorStop(0, `rgb(${topLight[0]},${topLight[1]},${topLight[2]})`);
   topGrad.addColorStop(0.5, topColor);
-  topGrad.addColorStop(1, darkenColor(topColor, 10));
-
+  topGrad.addColorStop(1, `rgb(${topMid[0]},${topMid[1]},${topMid[2]})`);
   ctx.fillStyle = topGrad;
-  ctx.beginPath();
-  ctx.moveTo(bx, by);
-  ctx.lineTo(bx + w, by);
-  ctx.lineTo(bx + w, by + h - depth);
-  ctx.lineTo(bx + w - depth, by + h);
-  ctx.lineTo(bx + depth, by + h);
-  ctx.lineTo(bx, by + h - depth);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillRect(x, y, size, size);
 
-  // 5. 顶面高光（左上角亮光）
-  const highlightGrad = ctx.createLinearGradient(bx, by, bx + w * 0.5, by + h * 0.5);
-  highlightGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+  // 顶面高光（左上角亮光）
+  const highlightGrad = ctx.createLinearGradient(x, y, x + size * 0.5, y + size * 0.5);
+  highlightGrad.addColorStop(0, 'rgba(255,255,255,0.2)');
   highlightGrad.addColorStop(1, 'rgba(255,255,255,0)');
-
   ctx.fillStyle = highlightGrad;
-  ctx.beginPath();
-  ctx.moveTo(bx, by);
-  ctx.lineTo(bx + w, by);
-  ctx.lineTo(bx + w, by + h - depth);
-  ctx.lineTo(bx + w - depth, by + h);
-  ctx.lineTo(bx + depth, by + h);
-  ctx.lineTo(bx, by + h - depth);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillRect(x, y, size, size);
 }
 
-function lightenColor(hex, percent) {
+function hexToRgb(hex) {
   const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.min(255, (num >> 16) + Math.round(2.55 * percent));
-  const g = Math.min(255, ((num >> 8) & 0x00FF) + Math.round(2.55 * percent));
-  const b = Math.min(255, (num & 0x0000FF) + Math.round(2.55 * percent));
-  return `rgb(${r},${g},${b})`;
+  return [(num >> 16) & 0xFF, (num >> 8) & 0xFF, num & 0xFF];
 }
 
-function darkenColor(hex, percent) {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent));
-  const g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(2.55 * percent));
-  const b = Math.max(0, (num & 0x0000FF) - Math.round(2.55 * percent));
-  return `rgb(${r},${g},${b})`;
+function adjustBrightness(rgb, amount) {
+  return [
+    Math.max(0, Math.min(255, Math.round(rgb[0] + amount))),
+    Math.max(0, Math.min(255, Math.round(rgb[1] + amount))),
+    Math.max(0, Math.min(255, Math.round(rgb[2] + amount))),
+  ];
 }
 
 function drawRoundedRect(ctx, x, y, w, h, r, color) {
