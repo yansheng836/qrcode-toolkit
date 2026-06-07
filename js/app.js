@@ -107,6 +107,7 @@ let currentOptions = {
   logoImage: null,
   colorDark: '#000000',
   colorLight: '#ffffff',
+  style3d: false,
 };
 
 function initStyleArea() {
@@ -131,6 +132,13 @@ function initStyleArea() {
     <div class="form-group">
       <label class="form-label">圆角 (<span id="radius-value">0</span>%)</label>
       <input type="range" id="corner-radius" class="range-input" min="0" max="100" value="0">
+    </div>
+
+    <div class="form-group">
+      <div class="checkbox-wrap">
+        <input type="checkbox" id="style-3d" class="checkbox-input">
+        <label class="form-label checkbox-label" for="style-3d">3D 立体效果</label>
+      </div>
     </div>
 
     <div class="form-group">
@@ -193,6 +201,18 @@ function bindStyleEvents() {
   document.getElementById('corner-radius').addEventListener('input', (e) => {
     currentOptions.cornerRadius = parseInt(e.target.value) / 100;
     document.getElementById('radius-value').textContent = e.target.value;
+  });
+
+  // 3D 立体效果
+  document.getElementById('style-3d').addEventListener('change', (e) => {
+    currentOptions.style3d = e.target.checked;
+    if (e.target.checked) {
+      // 3D 模式下自动设为圆点
+      currentOptions.cornerRadius = 1;
+      document.getElementById('corner-radius').value = 100;
+      document.getElementById('radius-value').textContent = '100';
+    }
+    updatePreview();
   });
 
   // 背景图片
