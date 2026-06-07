@@ -313,9 +313,70 @@ function initThemeButtons() {
   document.querySelector(`.theme-btn[data-theme="${current}"]`)?.classList.add('active');
 }
 
+function initExportArea() {
+  const area = document.getElementById('export-area');
+  area.innerHTML = `
+    <div class="export-buttons">
+      <button class="export-btn" data-format="png">导出 PNG</button>
+      <button class="export-btn" data-format="jpg">导出 JPG</button>
+      <button class="export-btn" data-format="svg">导出 SVG</button>
+    </div>
+  `;
+
+  area.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.export-btn');
+    if (!btn) return;
+
+    const format = btn.dataset.format;
+    const text = getInputText();
+    if (!text) return;
+
+    try {
+      const dataURL = await generateQR(text, currentOptions);
+
+      if (format === 'svg') {
+        const svgDataURL = canvasToSVG(dataURL, 300, 300);
+        downloadFile(svgDataURL, 'qrcode.svg');
+      } else if (format === 'jpg') {
+        const jpgDataURL = await convertToJPG(dataURL);
+        downloadFile(jpgDataURL, 'qrcode.jpg');
+      } else {
+        downloadFile(dataURL, 'qrcode.png');
+      }
+    } catch (err) {
+      alert('导出失败: ' + err.message);
+    }
+  });
+}
+
+function canvasToSVG(pngDataURL, width, height) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <image href="${pngDataURL}" width="${width}" height="${height}"/>
+  </svg>`;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
+function convertToJPG(pngDataURL) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 300, 300);
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.src = pngDataURL;
+  });
+}
+
 function init() {
   initContentArea();
   initStyleArea();
+  initExportArea();
   initPreview();
   initThemeButtons();
 }
