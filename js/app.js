@@ -275,3 +275,49 @@ function bindStyleEvents() {
     updatePreview();
   });
 }
+
+const debouncedUpdate = debounce(updatePreview, 300);
+
+async function updatePreview() {
+  const text = getInputText();
+  const previewEl = document.getElementById('qr-preview');
+
+  if (!text) {
+    previewEl.innerHTML = '<p class="qr-placeholder">输入内容后自动生成二维码</p>';
+    return;
+  }
+
+  try {
+    const dataURL = await generateQR(text, currentOptions);
+    previewEl.innerHTML = `<img src="${dataURL}" alt="QR Code">`;
+  } catch (err) {
+    previewEl.innerHTML = `<p class="qr-placeholder" style="color:#ef4444">生成失败: ${err.message}</p>`;
+  }
+}
+
+function initPreview() {
+  document.getElementById('content-area').addEventListener('input', debouncedUpdate);
+  document.getElementById('style-area').addEventListener('input', debouncedUpdate);
+  document.getElementById('style-area').addEventListener('change', debouncedUpdate);
+}
+
+function initThemeButtons() {
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setTheme(btn.dataset.theme);
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  const current = getCurrentTheme();
+  document.querySelector(`.theme-btn[data-theme="${current}"]`)?.classList.add('active');
+}
+
+function init() {
+  initContentArea();
+  initStyleArea();
+  initPreview();
+  initThemeButtons();
+}
+
+document.addEventListener('DOMContentLoaded', init);
