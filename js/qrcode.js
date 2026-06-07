@@ -48,11 +48,31 @@ async function generateQR(text, options = {}) {
     ctx.fillRect(0, 0, size, size);
   }
 
-  // 绘制 QR 码模块
+  // 准备前景填充样式（渐变或纯色）
   const cornerRadius = options.cornerRadius || 0;
   const dotSize = cellSize * (1 - cornerRadius * 0.5);
   const hasBgImage = !!options.backgroundImage;
+  let foregroundFill = colorDark;
 
+  if (options.gradient && options.gradient.colorStops) {
+    const gradientConfig = options.gradient;
+    let gradient;
+    if (gradientConfig.type === 'radial') {
+      gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    } else {
+      const dir = (gradientConfig.direction || 135) * Math.PI / 180;
+      gradient = ctx.createLinearGradient(
+        size/2 - Math.cos(dir) * size/2, size/2 - Math.sin(dir) * size/2,
+        size/2 + Math.cos(dir) * size/2, size/2 + Math.sin(dir) * size/2
+      );
+    }
+    gradientConfig.colorStops.forEach(stop => {
+      gradient.addColorStop(stop.offset, stop.color);
+    });
+    foregroundFill = gradient;
+  }
+
+  // 绘制 QR 码模块
   for (let row = 0; row < moduleCount; row++) {
     for (let col = 0; col < moduleCount; col++) {
       if (qr.isDark(row, col)) {
@@ -69,36 +89,14 @@ async function generateQR(text, options = {}) {
           }
         }
 
+        ctx.fillStyle = foregroundFill;
         if (cornerRadius > 0) {
-          drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, colorDark);
+          drawRoundedRect(ctx, x, y, dotSize, dotSize, cornerRadius * cellSize * 0.3, foregroundFill);
         } else {
-          ctx.fillStyle = colorDark;
           ctx.fillRect(x, y, dotSize, dotSize);
         }
       }
     }
-  }
-
-  // 渐变叠加
-  if (options.gradient && options.gradient.colorStops) {
-    const gradientConfig = options.gradient;
-    let gradient;
-    if (gradientConfig.type === 'radial') {
-      gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-    } else {
-      const dir = (gradientConfig.direction || 135) * Math.PI / 180;
-      gradient = ctx.createLinearGradient(
-        size/2 - Math.cos(dir) * size/2, size/2 - Math.sin(dir) * size/2,
-        size/2 + Math.cos(dir) * size/2, size/2 + Math.sin(dir) * size/2
-      );
-    }
-    gradientConfig.colorStops.forEach(stop => {
-      gradient.addColorStop(stop.offset, stop.color);
-    });
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-    ctx.globalCompositeOperation = 'source-over';
   }
 
   // Logo
